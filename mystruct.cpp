@@ -15,9 +15,22 @@
  */
 MPI_Datatype mystruct_get_mpi_type() {
     // use MPI commands to create a custom data type for MyStruct
-    MPI_Datatype type;
-
     // TODO: create the MPI datatype for MyStruct
+    int blens[3] = {1, 1, 4};
+    MPI_Datatype types[3] = {MPI_UNSIGNED,MPI_DOUBLE,MPI_CHAR};
+    MyStruct a;
+    MPI_Aint base, adr_key, adr_d, adr_e;
+    MPI_Get_address(&a, &base);
+    MPI_Get_address(&a.key, &adr_key);
+    MPI_Get_address(&a.d, &adr_d);
+    MPI_Get_address(&a.e[0], &adr_e);
+    MPI_Aint disps[3] = {adr_key - base, adr_d - base, adr_e - base};
+    MPI_Aint extend = sizeof(a);
+
+    MPI_Datatype mpi_tmp_t, type;
+
+    MPI_Type_create_struct(3, blens, disps, types, &mpi_tmp_t);
+    MPI_Type_create_resized(mpi_tmp_t, 0, extend, &type);
 
     MPI_Type_commit(&type);
     return type;

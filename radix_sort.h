@@ -10,11 +10,12 @@
  */
 
 #include <mpi.h>
+#include <vector>
 
 // returns the value of the digit starting at offset `offset` and containing `k` bits
-#define GET_DIGIT(key, k, offset) ((key) >> (offset)) & ((1 << (k)) - 1)
+#define GET_DIGIT(key, k, offset) (((key) >> (offset)) & ((1 << (k)) - 1))
 
-
+#define TEST_CODE 1
 /**
  * @brief   Parallel distributed radix sort.
  *
@@ -56,8 +57,35 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
     unsigned int num_buckets = 1 << k;
 
     for (unsigned int d = 0; d < 8*sizeof(unsigned int); d += k) {
+        std::vector<T> result(np);//Temporary sorted vector by the key field
+        std::vector<unsigned int> hist(num_buckets, 0);
+        #undef TEST_CODE
+        #define TEST_CODE 0
+        #if TEST_CODE
+            std::cout << k << " " << d << GET_DIGIT(key_func(*begin), k, d) << "\n";
+        #endif
+        for (T* iter = begin; iter <= end ; iter++){//Calculating the histogram
+            hist[GET_DIGIT(key_func(*iter), k, d)]++;
+        }
+
+        std::vector<unsigned int> sum_hist(hist);//Will store the cumulative values
+        for (std::vector<unsigned int>::iterator next = sum_hist.begin() + 1; next != sum_hist.end() ; next++) {
+            *next += *(next-1);
+        }
+
+        for (T* iter = begin; iter <= end ; iter++){//Peforming the sorting
+            result[sum_hist[key_func(*iter)]-1] = *iter;
+        }
+        int result_index = 0;
+        for (T* iter = begin; iter <= end ; iter++, result_index++){//Copying to the original array
+            *iter = result[result_index];
+        }
+
+        MPI_Barrier (comm);
+
+
         // TODO:
-        // 1.) create histogram and sort via bucketing (~ counting sort)
+        // 1.) create histogram and sort via bucketing (~ counting sort) DONE
         // 2.) get global histograms (P, G) via MPI_Exscan/MPI_Allreduce,...
         // 3.) calculate send_counts
         // 4.) communicate send_counts to get recv_counts
