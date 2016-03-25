@@ -11,11 +11,11 @@
 
 #include <mpi.h>
 #include <vector>
-
+#include "mystruct.h"
 // returns the value of the digit starting at offset `offset` and containing `k` bits
 #define GET_DIGIT(key, k, offset) (((key) >> (offset)) & ((1 << (k)) - 1))
 
-#define TEST_CODE 1
+#define TEST_CODE 0
 /**
  * @brief   Parallel distributed radix sort.
  *
@@ -59,8 +59,6 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
     for (unsigned int d = 0; d < 8*sizeof(unsigned int); d += k) {
         std::vector<T> result(np);//Temporary sorted vector by the key field
         std::vector<unsigned int> hist(num_buckets, 0);
-        #undef TEST_CODE
-        #define TEST_CODE 0
         #if TEST_CODE
             std::cout << k << " " << d << GET_DIGIT(key_func(*begin), k, d) << "\n";
         #endif
@@ -83,10 +81,19 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
 
         MPI_Barrier (comm);
 
+        std::vector<unsigned int> G(num_buckets, 0);
+        MPI_Allreduce(&hist.front(), &G.front(), hist.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+        MPI_Barrier (comm);
+
+        std::vector<unsigned int> P(num_buckets, 0);
+        MPI_Exscan(&hist.front(), &P.front(), hist.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+        MPI_Barrier (comm);
 
         // TODO:
         // 1.) create histogram and sort via bucketing (~ counting sort) DONE
-        // 2.) get global histograms (P, G) via MPI_Exscan/MPI_Allreduce,...
+        // 2.) get global histograms (P, G) via MPI_Exscan/MPI_Allreduce,... DONE (sorta!)
         // 3.) calculate send_counts
         // 4.) communicate send_counts to get recv_counts
         // 4.) calculate displacements
@@ -94,4 +101,11 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
         // 7.) local sorting via bucketing (~ counting sort)
     }
 }
+//void arraySum(void* invec, void* inoutvec, int *len, MPI_Datatype *datatype){
+//    MyStruct* in = (MyStruct*) invec;
+//    MyStruct* inout = (MyStruct*) inoutvec;
+//    for (int i = 0; i < *len; ++i) {
+//        inout[i].key += in[i].key;
+//    }
+//}
 
