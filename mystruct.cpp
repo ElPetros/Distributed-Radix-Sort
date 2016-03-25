@@ -33,6 +33,7 @@ MPI_Datatype mystruct_get_mpi_type() {
     MPI_Type_create_resized(mpi_tmp_t, 0, extend, &type);
 
     MPI_Type_commit(&type);
+
     return type;
 }
 
