@@ -198,6 +198,7 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
         //Calculating recv_counts and recv_displacements
         std::vector<unsigned int> recv_counts(p,0);
         MPI_Alltoall(&send_counts.front(), p-1, MPI_UNSIGNED, &recv_counts.front(), p-1, MPI_UNSIGNED, comm);
+        // TODO Check if we should be doing all to all with p-1 rather than p.
         std::cout << "recv_counts" << "\n";
         for (std::vector<unsigned int>::iterator iter = recv_counts.begin() ; iter != recv_counts.end() ; iter++){
             std::cout << *iter << ", ";
@@ -206,9 +207,11 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
 
 
         // Compute Receive displacements
+        // TODO fix this
         std::vector<unsigned int> recv_disp(p,0);
+        int recv_counter = 0;
         for (std::vector<unsigned int>::iterator iter = recv_disp.begin()+1; iter != recv_disp.end(); iter++) {
-            *iter += *(iter-1);
+            *iter += recv_counts[recv_counter++] + (*(iter-1));
         }
 
         std::cout << "recv_disp" << "\n";
@@ -218,6 +221,7 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
         std::cout << "\n";
 
         std::vector<T> recv_buff(begin, end); // how to initialize
+// Different line above
         MPI_Alltoallv(reinterpret_cast<void*>(result.data()), reinterpret_cast<const int*>(send_counts.data()), reinterpret_cast<const int*>(send_displacements.data()), dt, reinterpret_cast<void*>(recv_buff.data()),
                       reinterpret_cast<const int*>(recv_counts.data()), reinterpret_cast<const int*>(recv_disp.data()), dt, comm);
 
@@ -225,22 +229,25 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
 
 
         size_t offset = np*sizeof(T);
-        for( T* recv_iter = recv_buff.data(); recv_iter < recv_buff.data() + offset;  recv_iter++) {
+        // slightly different line
+        for( T* recv_iter = recv_buff.data(); recv_iter < recv_buff.data() + np;  recv_iter++) {
             std::cout << key_func(*recv_iter) << ", ";
+            // difference in how we obtain the value
         }
         std::cout << std::endl;
 
+//        Copy to begin-end from recv_buffer
 
 //        size_t offset = np*sizeof(T);
         // Locally sort receive buffer using counting sort.
 //        counting_sort(recv_buff.data(), recv_buff.data() + offset,key_func,k,d);
 //
 //        // Copy these values to the begin and end
-//        int index = 0;
-//        T* recv_iter = recv_buff.data();
-//        for(T* iter = begin; iter != end; iter++, recv_iter++) {
-//            *iter = *recv_iter;
-//        }
+        int index = 0;
+        T* recv_iter = recv_buff.data();
+        for(T* iter = begin; iter != end; iter++, recv_iter++) {
+            *iter = *recv_iter;
+        }
         // TODO:
         // 1.) create histogram and sort via bucketing (~ counting sort) DONE
         // 2.) get global histograms (P, G) via MPI_Exscan/MPI_Allreduce,... DONE (sorta!)
