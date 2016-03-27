@@ -100,9 +100,9 @@ void test_rand_mystruct(int n) {
 }
 
 TEST(MpiTest, SortMyStruct100rand) {
-    test_rand_mystruct(100);
+    test_rand_ints(100);
 }
 
 TEST(MpiTest, SortMyStruct100000) {
-    test_rand_mystruct(100000);
+    test_rand_ints(100000);
 }
