@@ -19,6 +19,7 @@ struct MyStruct {
     unsigned int key;
     double d;
     char e[4];
+    
 };
 
 /**

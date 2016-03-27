@@ -44,23 +44,36 @@ void test_sort_global(std::vector<T>& global_in, unsigned int (*key_func)(const 
     int rank, p;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &p);
+    std::cout<< "test global" << std::endl;
 
     ASSERT_TRUE(global_in.size() % p == 0) << "input size has to be a mutliple of p";
-
+    std::cout<< "test assert global" << std::endl;
     // scatter data from rank 0 to all processors
+    // std::vector<T>::iterator iter;
+    // std::cout << "Initial Struct before scatter" << std::endl;
+    // for(iter = global_in.front(); iter != global_in.end(); iter++) {
+    //     std::cout << *iter << ", ";
+    // }
+    // std::cout<<std::endl;
     std::vector<T> local_x = scatter(global_in, dt, MPI_COMM_WORLD);
+    std::cout<< "test scatter global" << std::endl;
 
     // radix sort the input
     radix_sort(&local_x[0], &local_x[0]+local_x.size(), key_func, dt, MPI_COMM_WORLD, k);
+    std::cout << "test radix global" << std::endl;
+
 
     // gather sorted datat back for verification
     std::vector<T> global_result = gather(local_x, dt, MPI_COMM_WORLD);
+    std::cout << "test_sort_global gather" << std::endl;
 
+    std::cout<<"test before verify global" << std::endl;
     // verify results on root process
     if (rank == 0) {
         std::stable_sort(global_in.begin(), global_in.end());
         EXPECT_EQ(global_in, global_result);
     }
+    std::cout<<"test after verify global" << std::endl;
 }
 
 void test_rand_ints(int n) {
@@ -76,6 +89,8 @@ void test_rand_ints(int n) {
     }
     test_sort_global(x, &nokey_func, MPI_UNSIGNED, 4);
 }
+
+
 
 void test_rand_same(int n) {
     std::vector<unsigned int> x;
@@ -93,39 +108,40 @@ void test_rand_same(int n) {
     test_sort_global(x, &nokey_func, MPI_UNSIGNED, 4);
 }
 
-TEST(MpiTest, Sort10rand) {
-    test_rand_ints(10);
-}
+// TEST(MpiTest, Sort10rand) {
+//     test_rand_ints(10);
+// }
 
-TEST(MpiTest, Sort1000rand) {
-    test_rand_ints(1000);
-}
+// TEST(MpiTest, Sort1000rand) {
+//     test_rand_ints(1000);
+// }
 
-TEST(MpiTest, Sort500rand) {
-    test_rand_ints(500);
-}
+// TEST(MpiTest, Sort500rand) {
+//     test_rand_ints(500);
+// }
 
-TEST(MpiTest, Sort45rand) {
-    test_rand_ints(45);
-}
+// TEST(MpiTest, Sort45rand) {
+//     test_rand_ints(45);
+// }
 
-TEST(MpiTest, SortSample) {
-    for(int i = 1; i < 25; i++) {
-        test_rand_ints(i);
-    }
-}
+// TEST(MpiTest, SortSample) {
+//     for(int i = 1; i < 25; i++) {
+//         test_rand_ints(i);
+//     }
+// }
 
-TEST(MpiTest, Sort100krand) {
-    test_rand_ints(100000);
-}
+// TEST(MpiTest, Sort100krand) {
+//     test_rand_ints(100000);
+// }
 
-TEST(MpiTest, Sort10krand) {
-    test_rand_ints(10000);
-}
+// TEST(MpiTest, Sort10krand) {
+//     test_rand_ints(10000);
+// }
 
-TEST(MpiTest, Sort10kSame) {
-    test_rand_same(10000);
-}
+// TEST(MpiTest, Sort10kSame) {
+//     test_rand_same(10000);
+// }
+
 
 
 void test_rand_mystruct(int n) {
@@ -139,13 +155,14 @@ void test_rand_mystruct(int n) {
         std::generate(x.begin(), x.end(), mystruct_rand);
     }
     MPI_Datatype dt = mystruct_get_mpi_type();
+
     test_sort_global(x, &mystruct_key_access, dt, 8);
 }
 
-// TEST(MpiTest, SortMyStruct100rand) {
-//     test_rand_mystruct(100);
-// }
+TEST(MpiTest, SortMyStruct100rand) {
+    test_rand_mystruct(15);
+}
 
-// TEST(MpiTest, SortMyStruct100000) {
-//     test_rand_mystruct(100000);
-// }
+TEST(MpiTest, SortMyStruct100000) {
+    test_rand_mystruct(100000);
+}

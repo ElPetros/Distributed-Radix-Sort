@@ -38,6 +38,24 @@ MPI_Datatype mystruct_get_mpi_type() {
 }
 
 
+
+
+// struct A { char c;
+// double d;
+// char e[3]; };
+
+// A a;
+// MPI_Aint base, adr_c, adr_d, adr_e;
+// MPI_Get_address(&a, &base);
+// MPI_Get_address(&a.c, &adr_c);
+// MPI_Get_address(&a.d, &adr_d); 
+// MPI_Get_address(&a.e[0], &adr_e);
+// MPI_Aint disps[3] = {adr_c - base, adr_d - base, adr_e - base}; 
+// MPI_Aint extend = sizeof(a);
+// MPI_Type_create_struct(3, blens, types, disps, &mpi_tmp_t);
+
+
+
 /*********************************************************************
  *              Don't change anything beyond this point              *
  *********************************************************************/
