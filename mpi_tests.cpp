@@ -77,6 +77,22 @@ void test_rand_ints(int n) {
     test_sort_global(x, &nokey_func, MPI_UNSIGNED, 4);
 }
 
+void test_rand_same(int n) {
+    std::vector<unsigned int> x;
+    int rank, p;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &p);
+    int randval = rand() %n;
+    if (rank == 0) {
+        // sort with 10 elements per process
+        x.resize(n*p);
+
+        for (size_t i = 0; i < x.size(); ++i)
+            x[i] = randval;
+    }
+    test_sort_global(x, &nokey_func, MPI_UNSIGNED, 4);
+}
+
 TEST(MpiTest, Sort10rand) {
     test_rand_ints(10);
 }
@@ -84,6 +100,33 @@ TEST(MpiTest, Sort10rand) {
 TEST(MpiTest, Sort1000rand) {
     test_rand_ints(1000);
 }
+
+TEST(MpiTest, Sort500rand) {
+    test_rand_ints(500);
+}
+
+TEST(MpiTest, Sort45rand) {
+    test_rand_ints(45);
+}
+
+TEST(MpiTest, SortSample) {
+    for(int i = 1; i < 25; i++) {
+        test_rand_ints(i);
+    }
+}
+
+TEST(MpiTest, Sort100krand) {
+    test_rand_ints(100000);
+}
+
+TEST(MpiTest, Sort10krand) {
+    test_rand_ints(10000);
+}
+
+TEST(MpiTest, Sort10kSame) {
+    test_rand_same(10000);
+}
+
 
 void test_rand_mystruct(int n) {
     std::vector<MyStruct> x;
@@ -99,10 +142,10 @@ void test_rand_mystruct(int n) {
     test_sort_global(x, &mystruct_key_access, dt, 8);
 }
 
-TEST(MpiTest, SortMyStruct100rand) {
-    test_rand_ints(100);
-}
+// TEST(MpiTest, SortMyStruct100rand) {
+//     test_rand_mystruct(100);
+// }
 
-TEST(MpiTest, SortMyStruct100000) {
-    test_rand_ints(100000);
-}
+// TEST(MpiTest, SortMyStruct100000) {
+//     test_rand_mystruct(100000);
+// }

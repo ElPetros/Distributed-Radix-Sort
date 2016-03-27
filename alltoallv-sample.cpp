@@ -9,20 +9,22 @@
 
 int main(int argc, char* argv[]) {
 	MPI_Init(NULL, NULL);
-	int numbers[4] = {4,3,2,1};	
-	int sendcounts[4] = {1,1,1,1};
-	int recvcounts[4] = {1,1,1,1};
-	int senddisp[4] = {0,1,2,3};
-	int recvdisp[4] = {0,1,2,3};
-	int recvbuff[4] = {0};
+
+	int size = 5;
+	int numbers[5] = {4,3,2,1,0};	
+	int sendcounts[5] = {1,1,1,1,1};
+	int recvcounts[5] = {1,1,1,1,1};
+	int senddisp[5] = {0,1,2,3,4};
+	int recvdisp[5] = {0,1,2,3,4};
+	int recvbuff[5] = {0};
 	int rank;
 	
 	
-	std::vector<unsigned int> send_count(sendcounts, sendcounts+4);
-	std::vector<unsigned int> recv_count(recvcounts, recvcounts+4);
-	std::vector<unsigned int> recv_disp(recvdisp, recvdisp+4);
-	std::vector<unsigned int> send_disp(senddisp, senddisp+4);
-	std::vector<unsigned int> numbers_vec(numbers, numbers+4);
+	std::vector<unsigned int> send_count(sendcounts, sendcounts+size);
+	std::vector<unsigned int> recv_count(recvcounts, recvcounts+size);
+	std::vector<unsigned int> recv_disp(recvdisp, recvdisp+size);
+	std::vector<unsigned int> send_disp(senddisp, senddisp+size);
+	std::vector<unsigned int> numbers_vec(numbers, numbers+size);
 	std::vector<unsigned int> recv_vec(numbers_vec);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	

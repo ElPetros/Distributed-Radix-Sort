@@ -16,7 +16,8 @@
 #define GET_DIGIT(key, k, offset) (((key) >> (offset)) & ((1 << (k)) - 1))
 
 #define TEST_CODE 0
-#define HELPER_FUNC
+#define NO_HELPER_FUNC 1
+
 template <typename T>
 std::vector<unsigned int> counting_sort(T* src_begin, T* src_end, T* dst_begin, 
     unsigned int (*key_func)(const T&), unsigned int k = 16, unsigned int d=0);
@@ -56,7 +57,9 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
 
     // The number of elements per processor: n/p
     size_t np = end - begin;
+    #if TEST_CODE
     std::cout << "SIZE: " << np << "\n";
+    #endif
 
     // the number of histogram buckets = 2^k
     unsigned int num_buckets = 1 << k;
@@ -83,7 +86,7 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
         std::vector<unsigned int> hist(num_buckets, 0);
         std::vector<unsigned int> L_backup(np,0);
         
-#ifdef HELPER_FUNC
+    #if NO_HELPER_FUNC
         for (T* iter = begin; iter < end ; iter++){
             hist[GET_DIGIT(key_func(*iter), k, d)]++;
         }
@@ -107,9 +110,11 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
         for (T* iter = begin; iter < end ; iter++, result_index++){//Copying to the original array
             *iter = result[result_index];
         }
-#else 
+    #else 
         L_backup = counting_sort(begin,end, begin,key_func,k,d);
-#endif
+    #endif
+
+        MPI_Barrier (comm);
         #if TEST_CODE
                 std::cout << "*******************Test2" << "\n";
                 std::cout << "rank = " << rank << ", k = " << k << ", offset = " << d << "\n";
@@ -129,8 +134,8 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
                 std::cout << "\n";
         #endif
         
-        MPI_Barrier (comm);
-        /* All Reduce */
+    
+        /* Compute G with All Reduce */
         std::vector<unsigned int> G(num_buckets, 0);
         MPI_Allreduce(&hist.front(), &G.front(), hist.size(), MPI_UNSIGNED, MPI_SUM, comm);
         for (std::vector<unsigned int>::iterator iter = G.begin() + 1; iter != G.end() ; iter++){
@@ -138,65 +143,75 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
         }
         G.insert(G.begin(),0);
         G.pop_back();
+        MPI_Barrier (comm);
 
-    #if TEST_CODE
+        #if TEST_CODE
             std::cout << "G Histogram" << rank << "\n";
             for (std::vector<unsigned int>::iterator iter = G.begin() ; iter != G.end() ; iter++){
                 std::cout << *iter << ", ";
             }
             std::cout << "\n";
-    #endif
-        MPI_Barrier (comm);
+        #endif
+        
 
+        /* Compute P */
         std::vector<unsigned int> P(num_buckets, 0);
         MPI_Exscan(&hist.front(), &P.front(), hist.size(), MPI_UNSIGNED, MPI_SUM, comm);
-
-    #if TEST_CODE
+        MPI_Barrier (comm);
+        
+        #if TEST_CODE
             std::cout << "P Histogram" << rank << "\n";
             for (std::vector<unsigned int>::iterator iter = P.begin() ; iter != P.end() ; iter++){
                 std::cout << *iter << ", ";
             }
             std::cout << "\n";
-    #endif
+        #endif
 
-        MPI_Barrier (comm);
 
+        /* Compute L */
         std::vector<unsigned int> L(np, 0);
         int L_index = 0;
         for (T* iter = begin; iter < end ; iter++, L_index++){
             L[L_index] = L_index - L_backup[GET_DIGIT(key_func(*iter), k, d)];
         }
-    #if TEST_CODE
+        #if TEST_CODE
             std::cout << "L Histogram" << rank << "\n";
             for (std::vector<unsigned int>::iterator iter = L.begin() ; iter != L.end() ; iter++){
                 std::cout << *iter << ", ";
             }
             std::cout << "\n";
-    #endif
+        #endif
+
+        /* Compute T */
         std::vector<unsigned int> Tarray(L);
         int T_index = 0;
         for (T* iter = begin; iter < end ; iter++, T_index++){
             Tarray[T_index] += G[GET_DIGIT(key_func(*iter), k, d)] + P[GET_DIGIT(key_func(*iter), k, d)];
         }
-    #if TEST_CODE
-            std::cout << "Tarray" << rank << "\n";
-            for (std::vector<unsigned int>::iterator iter = Tarray.begin() ; iter != Tarray.end() ; iter++){
-                std::cout << *iter << ", ";
-            }
-            std::cout << "\n";
-    #endif
         MPI_Barrier (comm);
+        #if TEST_CODE
+                std::cout << "Tarray" << rank << "\n";
+                for (std::vector<unsigned int>::iterator iter = Tarray.begin() ; iter != Tarray.end() ; iter++){
+                    std::cout << *iter << ", ";
+                }
+                std::cout << "\n";
+        #endif
+        
 
-        //Calculating send_counts and send_displacements
+        /* Compute Send Counts and Send Displacements */
         std::vector<unsigned int> send_counts(p,0);
         std::vector<unsigned int> send_displacements(p,0);
         std::vector<unsigned int> TarrayDividedByLocalSize(Tarray);//For Testing send_counts and send_displacements
         T_index = 1;
         send_counts[*(Tarray.begin())/np]++;
         TarrayDividedByLocalSize[0] /= np;//For testing
+
+
         for (std::vector<unsigned int>::iterator iter = Tarray.begin()+1 ; iter != Tarray.end() ; iter++, T_index++){
-            int destination_processor_rank = *iter/np;
+            int destination_processor_rank = (*iter)/np;
+
             TarrayDividedByLocalSize[T_index] /= np;//For testing
+
             int previous_destination_processor_rank = *(iter-1)/np;
             send_counts[destination_processor_rank]++;
             if(destination_processor_rank != previous_destination_processor_rank){
@@ -204,7 +219,7 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
             }
         }
 
-    #if TEST_CODE
+        #if TEST_CODE
             std::cout << "TarrayDividedByLocalSize" << "\n";
             for (std::vector<unsigned int>::iterator iter = TarrayDividedByLocalSize.begin() ; iter != TarrayDividedByLocalSize.end() ; iter++){
                 std::cout << *iter << ", ";
@@ -220,40 +235,41 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
                 std::cout << *iter << ", ";
             }
             std::cout << "\n";
-    #endif
+        #endif
 
         //Calculating recv_counts and recv_displacements
         std::vector<unsigned int> recv_counts(p,0);
-        MPI_Alltoall(&send_counts.front(), p-1, MPI_UNSIGNED, &recv_counts.front(), p-1, MPI_UNSIGNED, comm);
+        MPI_Alltoall(&send_counts.front(), 1, MPI_UNSIGNED, &recv_counts.front(), 1, MPI_UNSIGNED, comm);
 
-    #if TEST_CODE
+        #if TEST_CODE
             // TODO Check if we should be doing all to all with p-1 rather than p.
+            // It should be 1. You only receive and send one message per procoess.
             std::cout << "recv_counts" << "\n";
             for (std::vector<unsigned int>::iterator iter = recv_counts.begin() ; iter != recv_counts.end() ; iter++){
                 std::cout << *iter << ", ";
             }
             std::cout << "\n";
-    #endif
+        #endif
 
 
-        // Compute Receive displacements
-        // TODO fix this
+        /* Compute Receive displacements */
         std::vector<unsigned int> recv_disp(p,0);
         int recv_counter = 0;
         for (std::vector<unsigned int>::iterator iter = recv_disp.begin()+1; iter != recv_disp.end(); iter++) {
             *iter += recv_counts[recv_counter++] + (*(iter-1));
         }
 
-    #if TEST_CODE
-            std::cout << "recv_disp" << "\n";
-            for (std::vector<unsigned int>::iterator iter = recv_disp.begin() ; iter != recv_disp.end() ; iter++){
-                std::cout << *iter << ", ";
-            }
-            std::cout << "\n";
-    #endif
+        #if TEST_CODE
+                std::cout << "recv_disp" << "\n";
+                for (std::vector<unsigned int>::iterator iter = recv_disp.begin() ; iter != recv_disp.end() ; iter++){
+                    std::cout << *iter << ", ";
+                }
+                std::cout << "\n";
+        #endif
 
-        std::vector<T> recv_buff(begin, end); // how to initialize
-    // Different line above
+        MPI_Barrier(comm);
+        // Perform All to AllV
+        std::vector<T> recv_buff(begin, end); 
         MPI_Alltoallv(reinterpret_cast<void*>(result.data()), reinterpret_cast<const int*>(send_counts.data()), reinterpret_cast<const int*>(send_displacements.data()), dt, reinterpret_cast<void*>(recv_buff.data()),
                       reinterpret_cast<const int*>(recv_counts.data()), reinterpret_cast<const int*>(recv_disp.data()), dt, comm);
 
@@ -284,26 +300,14 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
                 // difference in how we obtain the value
             }
             std::cout << std::endl;
-        #endif
 
-        #if TEST_CODE
             std::cout << "Final result\n";
-            for(T* iter = begin; iter != end; iter++, recv_iter++) {
+            for(T* iter = begin; iter != end; iter++) {
                 
                 std::cout << key_func(*iter) << ", ";
             }
             std::cout << std::endl;
         #endif
-
-
-        // TODO:
-        // 1.) create histogram and sort via bucketing (~ counting sort) DONE
-        // 2.) get global histograms (P, G) via MPI_Exscan/MPI_Allreduce,... DONE (sorta!)
-        // 3.) calculate send_counts locally
-        // 4.) communicate send_counts to get recv_counts
-        // 4.) calculate displacements
-        // 6.) MPI_Alltoallv
-        // 7.) local sorting via bucketing (~ counting sort)
     }
 }
 
