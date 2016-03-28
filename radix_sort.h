@@ -16,8 +16,8 @@
 #define GET_DIGIT(key, k, offset) (((key) >> (offset)) & ((1 << (k)) - 1))
 
 #define TEST_CODE 0
-#define SEG_FAULT_TEST 1
-#define NO_HELPER_FUNC 1
+#define SEG_FAULT_TEST 0
+#define NO_HELPER_FUNC 1    
 
 template <typename T>
 std::vector<unsigned int> counting_sort(T* src_begin, T* src_end, T* dst_begin, 
@@ -66,10 +66,10 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
     // The number of elements per processor: n/p
     size_t np = end - begin;
     #if SEG_FAULT_TEST
-    std::cout << "in radix sort" << std::endl;
+        std::cout << "in radix sort" << std::endl;
     #endif
     #if TEST_CODE
-    std::cout << "SIZE: " << np << "\n";
+        std::cout << "SIZE: " << np << "\n";
     #endif
 
     // the number of histogram buckets = 2^k
@@ -101,7 +101,7 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
         /* Compute Histogram */
         std::vector<T> result(np);
         std::vector<unsigned int> hist(num_buckets, 0);
-        std::vector<unsigned int> L_backup(np,0);
+        std::vector<unsigned int> L_backup(num_buckets,0);
         
         
     #if NO_HELPER_FUNC
@@ -112,7 +112,7 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
         #if SEG_FAULT_TEST
         std::cout << "in radix sort - after histogram" << std::endl;
          #endif
-        std::vector<unsigned int> sum_hist(np, 0);//Will store the cumulative values
+        std::vector<unsigned int> sum_hist(num_buckets, 0);//Will store the cumulative values
                                                     //Indicates the starting index of each bucket
         for (std::vector<unsigned int>::iterator sum_hist_index = sum_hist.begin() + 1, hist_index = hist.begin() + 1, L_back_index = L_backup.begin() +1; 
             sum_hist_index != sum_hist.end() ; sum_hist_index++, hist_index++, L_back_index++) {
@@ -135,7 +135,7 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
             sum_hist[GET_DIGIT(key_func(*iter), k, d)]++;
         }
         #if SEG_FAULT_TEST
-        std::cout << "in radix sort - after key based sorting" << std::endl;
+                std::cout << "in radix sort - after key based sorting" << std::endl;
          #endif
         
         for (T* iter = begin; iter < end ; iter++, result_index++){//Copying to the original array
@@ -200,6 +200,7 @@ void radix_sort(T* begin, T* end, unsigned int (*key_func)(const T&), MPI_Dataty
         #if SEG_FAULT_TEST
             std::cout << "in radix sort - before P" << std::endl;
         #endif
+            
         /* Compute P */
         std::vector<unsigned int> P(num_buckets, 0);
         MPI_Exscan(&hist.front(), &P.front(), hist.size(), MPI_UNSIGNED, MPI_SUM, comm);
@@ -415,8 +416,8 @@ std::vector<unsigned int> counting_sort(T* src_begin, T* src_end, T* dst_begin, 
     unsigned int num_buckets = 1 << k;
     std::vector<T> result(np);//Temporary sorted vector by the key field
     std::vector<unsigned int> hist(num_buckets, 0);
-    std::vector<unsigned int> sum_hist(np, 0);
-    std::vector<unsigned int> L_backup(np,0);
+    std::vector<unsigned int> sum_hist(num_buckets, 0);
+    std::vector<unsigned int> L_backup(num_buckets,0);
     std::vector<unsigned int>::iterator sum_hist_index, hist_index;
 
     for (T* iter = src_begin; iter < src_end ; iter++){//Calculating the histogram
